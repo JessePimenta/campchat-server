@@ -73,22 +73,15 @@ wss.on('connection', (ws) => {
   ws.on('message', (data) => {
     try {
       const parsed = JSON.parse(data.toString());
-      console.log('Received message from client:', parsed);
-
-      // Handle both direct text and message objects
-      const messageText = parsed.text || (typeof parsed === 'string' ? parsed : null);
-
-      if (messageText) {
+      if (parsed.text) {
         const message = {
           id: nanoid(),
           username,
-          text: messageText,
+          text: parsed.text,
           timestamp: Date.now()
         };
         console.log('Broadcasting message:', message);
         broadcast(message);
-      } else {
-        console.warn('Invalid message format:', parsed);
       }
     } catch (error) {
       console.error('Error processing message:', error);
