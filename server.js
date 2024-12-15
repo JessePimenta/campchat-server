@@ -1,27 +1,13 @@
 import { WebSocketServer } from 'ws';
 import { nanoid } from 'nanoid';
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8888;
 
 // Create WebSocket server with explicit options
 const wss = new WebSocketServer({
   port: PORT,
-  perMessageDeflate: {
-    zlibDeflateOptions: {
-      chunkSize: 1024,
-      memLevel: 7,
-      level: 3
-    },
-    zlibInflateOptions: {
-      chunkSize: 10 * 1024
-    },
-    clientNoContextTakeover: true,
-    serverNoContextTakeover: true,
-    serverMaxWindowBits: 10,
-    concurrencyLimit: 10,
-    threshold: 1024
-  },
-  maxPayload: 65536
+  perMessageDeflate: false,
+  clientTracking: true
 });
 
 // Track connected clients
@@ -73,14 +59,19 @@ wss.on('connection', (ws) => {
 
   ws.on('message', (data) => {
     try {
-      const { text } = JSON.parse(data.toString());
-      const message = {
-        id: nanoid(),
-        username,
-        text,
-        timestamp: Date.now()
-      };
-      broadcast(message);
+      const parsed = JSON.parse(data.toString());
+
+      if (parsed.type === 'ping') {
+        ws.send(JSON.stringify({ type: 'pong' }));
+      } else if (parsed.type === 'message' && parsed.text) {
+        const message = {
+          id: nanoid(),
+          username,
+          text: parsed.text,
+          timestamp: Date.now()
+        };
+        broadcast(message);
+      }
     } catch (error) {
       console.error('Error processing message:', error);
     }
