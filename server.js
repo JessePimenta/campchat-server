@@ -1,7 +1,7 @@
 import { WebSocketServer } from 'ws';
 import { nanoid } from 'nanoid';
 
-const PORT = process.env.PORT || 8888;
+const PORT = process.env.PORT || 8080;
 
 // Create WebSocket server with explicit options
 const wss = new WebSocketServer({
