@@ -73,18 +73,19 @@ wss.on('connection', (ws) => {
   ws.on('message', (data) => {
     try {
       const parsed = JSON.parse(data.toString());
-      if (parsed.text) {
+      const text = typeof parsed === 'object' ? parsed.text : parsed;
+      if (text) {
         const message = {
           id: nanoid(),
           username,
-          text: parsed.text,
+          text: text,
           timestamp: Date.now()
         };
         console.log('Broadcasting message:', message);
         broadcast(message);
       }
     } catch (error) {
-      console.error('Error processing message:', error);
+      console.error('Error processing message:', error, data.toString());
     }
   });
 
