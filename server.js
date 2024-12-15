@@ -1,13 +1,26 @@
 import { WebSocketServer } from 'ws';
 import { nanoid } from 'nanoid';
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 3000;
 
 // Create WebSocket server with explicit options
 const wss = new WebSocketServer({
   port: PORT,
-  perMessageDeflate: false,
-  clientTracking: true
+  perMessageDeflate: {
+    zlibDeflateOptions: {
+      chunkSize: 1024,
+      memLevel: 7,
+      level: 3
+    },
+    zlibInflateOptions: {
+      chunkSize: 10 * 1024
+    },
+    clientNoContextTakeover: true,
+    serverNoContextTakeover: true,
+    serverMaxWindowBits: 10,
+    concurrencyLimit: 10,
+    threshold: 1024
+  }
 });
 
 // Track connected clients
@@ -60,17 +73,22 @@ wss.on('connection', (ws) => {
   ws.on('message', (data) => {
     try {
       const parsed = JSON.parse(data.toString());
+      console.log('Received message from client:', parsed);
 
-      if (parsed.type === 'ping') {
-        ws.send(JSON.stringify({ type: 'pong' }));
-      } else if (parsed.type === 'message' && parsed.text) {
+      // Handle both direct text and message objects
+      const messageText = parsed.text || (typeof parsed === 'string' ? parsed : null);
+
+      if (messageText) {
         const message = {
           id: nanoid(),
           username,
-          text: parsed.text,
+          text: messageText,
           timestamp: Date.now()
         };
+        console.log('Broadcasting message:', message);
         broadcast(message);
+      } else {
+        console.warn('Invalid message format:', parsed);
       }
     } catch (error) {
       console.error('Error processing message:', error);
@@ -92,24 +110,10 @@ wss.on('connection', (ws) => {
   });
 });
 
-// Heartbeat to keep connections alive
-const interval = setInterval(() => {
-  wss.clients.forEach((ws) => {
-    if (ws.isAlive === false) {
-      clients.delete(ws);
-      return ws.terminate();
-    }
-    ws.isAlive = false;
-    ws.ping();
-  });
-}, 30000);
-
-wss.on('close', () => {
-  clearInterval(interval);
-});
 
 function broadcast(message) {
   const messageStr = JSON.stringify(message);
+  console.log('Broadcasting to clients:', messageStr);
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocketServer.OPEN) {
       client.send(messageStr);
